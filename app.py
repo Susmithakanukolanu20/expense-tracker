@@ -2,7 +2,6 @@ from flask import Flask, request, jsonify, render_template, redirect, session
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 import mysql.connector
-from sklearn.linear_model import LinearRegression
 
 app = Flask(__name__)
 CORS(app)
