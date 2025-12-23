@@ -1,6 +1,0 @@
-flask
-flask-mysqldb
-flask-cors
-werkzeug
-scikit-learn
-gunicorn
