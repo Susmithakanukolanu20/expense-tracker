@@ -1,6 +1,6 @@
 flask
-flask-mysqldb
 flask-cors
 werkzeug
+mysql-connector-python
 scikit-learn
 gunicorn

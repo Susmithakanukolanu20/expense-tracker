@@ -1,34 +1,49 @@
 from flask import Flask, request, jsonify, render_template, redirect, session
 from flask_cors import CORS
-from flask_mysqldb import MySQL
 from werkzeug.security import generate_password_hash, check_password_hash
+import mysql.connector
+from sklearn.linear_model import LinearRegression
 
 app = Flask(__name__)
 CORS(app)
 
-app.secret_key = "your_secret_key_here"
+# ---------------- BASIC CONFIG ----------------
+app.secret_key = "supersecretkey123"
 
-# MySQL configuration (NO INDENTATION)
-app.config['MYSQL_HOST'] = 'mysql.railway.internal'
+# ---------------- MYSQL CONFIG (RAILWAY) ----------------
+app.config['MYSQL_HOST'] = 'yamabiko.proxy.rlwy.net'
 app.config['MYSQL_USER'] = 'root'
 app.config['MYSQL_PASSWORD'] = 'vFocZFEDyWgtKCEPrAPFahfxQvIfHbiR'
 app.config['MYSQL_DB'] = 'railway'
 app.config['MYSQL_PORT'] = 3306
 
-mysql = MySQL(app)
+
+# ---------------- DB CONNECTION ----------------
+def get_db_connection():
+    return mysql.connector.connect(
+        host=app.config['MYSQL_HOST'],
+        user=app.config['MYSQL_USER'],
+        password=app.config['MYSQL_PASSWORD'],
+        database=app.config['MYSQL_DB'],
+        port=app.config['MYSQL_PORT']
+    )
+
 
 # ---------------- HOME ----------------
 @app.route('/')
 def home():
     username = None
-    if 'user_id' in session:
-        cur = mysql.connection.cursor()
+    if session.get('user_id'):
+        conn = get_db_connection()
+        cur = conn.cursor()
         cur.execute("SELECT username FROM users WHERE id=%s", (session['user_id'],))
         user = cur.fetchone()
         cur.close()
+        conn.close()
         if user:
             username = user[0]
     return render_template("index.html", username=username)
+
 
 # ---------------- REGISTER ----------------
 @app.route('/register', methods=['GET', 'POST'])
@@ -38,16 +53,20 @@ def register():
         email = request.form['email']
         password = generate_password_hash(request.form['password'])
 
-        cur = mysql.connection.cursor()
+        conn = get_db_connection()
+        cur = conn.cursor()
         cur.execute(
-            "INSERT INTO users (username, email, password) VALUES (%s,%s,%s)",
+            "INSERT INTO users (username, email, password) VALUES (%s, %s, %s)",
             (username, email, password)
         )
-        mysql.connection.commit()
+        conn.commit()
         cur.close()
+        conn.close()
+
         return redirect('/login')
 
     return render_template("register.html")
+
 
 # ---------------- LOGIN ----------------
 @app.route('/login', methods=['GET', 'POST'])
@@ -56,10 +75,12 @@ def login():
         email = request.form['email']
         password = request.form['password']
 
-        cur = mysql.connection.cursor()
+        conn = get_db_connection()
+        cur = conn.cursor()
         cur.execute("SELECT id, password FROM users WHERE email=%s", (email,))
         user = cur.fetchone()
         cur.close()
+        conn.close()
 
         if user and check_password_hash(user[1], password):
             session['user_id'] = user[0]
@@ -69,67 +90,83 @@ def login():
 
     return render_template("login.html")
 
+
 # ---------------- LOGOUT ----------------
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect('/login')
 
+
 # ---------------- ADD EXPENSE ----------------
 @app.route('/add')
 def add_page():
-    if 'user_id' not in session:
+    if not session.get('user_id'):
         return redirect('/login')
     return render_template("add.html")
 
+
 @app.route('/api/add_expense', methods=['POST'])
 def add_expense():
-    if 'user_id' not in session:
+    if not session.get('user_id'):
         return jsonify({"error": "Not logged in"})
 
     data = request.json
-    cur = mysql.connection.cursor()
+
+    conn = get_db_connection()
+    cur = conn.cursor()
     cur.execute(
-        "INSERT INTO expenses (category, amount, date, note, user_id) VALUES (%s,%s,%s,%s,%s)",
+        """
+        INSERT INTO expenses (category, amount, date, note, user_id)
+        VALUES (%s, %s, STR_TO_DATE(%s,'%%Y-%%m-%%d'), %s, %s)
+        """,
         (data['category'], data['amount'], data['date'], data['note'], session['user_id'])
     )
-    mysql.connection.commit()
+    conn.commit()
     cur.close()
+    conn.close()
 
     return jsonify({"message": "Expense Added"})
 
-# ---------------- VIEW EXPENSE ----------------
+
+# ---------------- VIEW EXPENSES ----------------
 @app.route('/view')
 def view_page():
-    if 'user_id' not in session:
+    if not session.get('user_id'):
         return redirect('/login')
     return render_template("view.html")
 
+
 @app.route('/api/get_expenses')
 def get_expenses():
-    if 'user_id' not in session:
+    if not session.get('user_id'):
         return jsonify([])
 
-    cur = mysql.connection.cursor()
+    conn = get_db_connection()
+    cur = conn.cursor()
     cur.execute(
         "SELECT id, category, amount, date, note FROM expenses WHERE user_id=%s",
         (session['user_id'],)
     )
     rows = cur.fetchall()
     cur.close()
+    conn.close()
 
     return jsonify([
-        {"id": r[0], "category": r[1], "amount": r[2], "date": r[3], "note": r[4]}
+        {"id": r[0], "category": r[1], "amount": r[2], "date": str(r[3]), "note": r[4]}
         for r in rows
     ])
+
 
 # ---------------- GRAPH DATA ----------------
 @app.route('/api/graph_data')
 def graph_data():
-    if 'user_id' not in session:
-        return jsonify([])
+    if not session.get('user_id'):
+        return jsonify({})
 
-    cur = mysql.connection.cursor()
+    conn = get_db_connection()
+    cur = conn.cursor()
+
     cur.execute(
         "SELECT category, SUM(amount) FROM expenses WHERE user_id=%s GROUP BY category",
         (session['user_id'],)
@@ -141,55 +178,65 @@ def graph_data():
         (session['user_id'],)
     )
     date_rows = cur.fetchall()
+
     cur.close()
+    conn.close()
 
     return jsonify({
         "categoryLabels": [r[0] for r in category_rows],
-        "categoryTotals": [r[1] for r in category_rows],
-        "dateLabels": [r[0] for r in date_rows],
-        "dateTotals": [r[1] for r in date_rows]
+        "categoryTotals": [float(r[1]) for r in category_rows],
+        "dateLabels": [str(r[0]) for r in date_rows],
+        "dateTotals": [float(r[1]) for r in date_rows]
     })
+
 
 # ---------------- DELETE EXPENSE ----------------
 @app.route('/api/delete/<int:id>', methods=['DELETE'])
 def delete_expense(id):
-    if 'user_id' not in session:
+    if not session.get('user_id'):
         return jsonify({"error": "Not logged in"})
 
-    cur = mysql.connection.cursor()
+    conn = get_db_connection()
+    cur = conn.cursor()
     cur.execute(
         "DELETE FROM expenses WHERE id=%s AND user_id=%s",
         (id, session['user_id'])
     )
-    mysql.connection.commit()
+    conn.commit()
     cur.close()
+    conn.close()
 
     return jsonify({"message": "Deleted"})
+
 
 # ---------------- ML PREDICTION ----------------
 @app.route('/api/predict')
 def predict_expense():
-    from sklearn.linear_model import LinearRegression
+    if not session.get('user_id'):
+        return jsonify({"prediction": 0})
 
-    cur = mysql.connection.cursor()
+    conn = get_db_connection()
+    cur = conn.cursor()
     cur.execute(
-        "SELECT date, amount FROM expenses WHERE user_id=%s ORDER BY date",
+        "SELECT amount FROM expenses WHERE user_id=%s ORDER BY date",
         (session['user_id'],)
     )
     rows = cur.fetchall()
     cur.close()
+    conn.close()
 
     if len(rows) < 3:
         return jsonify({"prediction": 0})
 
-    days = [[i] for i in range(len(rows))]
-    amounts = [r[1] for r in rows]
+    X = [[i] for i in range(len(rows))]
+    y = [float(r[0]) for r in rows]
 
     model = LinearRegression()
-    model.fit(days, amounts)
+    model.fit(X, y)
 
     prediction = model.predict([[len(rows)]])[0]
     return jsonify({"prediction": round(prediction, 2)})
+
 
 # ---------------- RUN APP ----------------
 if __name__ == "__main__":
