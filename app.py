@@ -8,16 +8,12 @@ CORS(app)
 
 app.secret_key = "your_secret_key_here"
 
-# ---------------- DATABASE CONFIG ----------------
-
-
-# 🔵 For CLOUD (Railway / Render)
-# Uncomment and fill when deploying
- app.config['MYSQL_HOST'] = 'mysql.railway.internal'
- app.config['MYSQL_USER'] = 'root'
- app.config['MYSQL_PASSWORD'] = 'vFocZFEDyWgtKCEPrAPFahfxQvIfHbiR'
- app.config['MYSQL_DB'] = 'railway'
- app.config['MYSQL_PORT'] = 3306
+# MySQL configuration (NO INDENTATION)
+app.config['MYSQL_HOST'] = 'mysql.railway.internal'
+app.config['MYSQL_USER'] = 'root'
+app.config['MYSQL_PASSWORD'] = 'vFocZFEDyWgtKCEPrAPFahfxQvIfHbiR'
+app.config['MYSQL_DB'] = 'railway'
+app.config['MYSQL_PORT'] = 3306
 
 mysql = MySQL(app)
 
