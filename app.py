@@ -210,32 +210,32 @@ def delete_expense(id):
 
 
 # ---------------- ML PREDICTION ----------------
-@app.route('/api/predict')
-def predict_expense():
-    if not session.get('user_id'):
-        return jsonify({"prediction": 0})
+# @app.route('/api/predict')
+#def predict_expense():
+  #  if not session.get('user_id'):
+    #    return jsonify({"prediction": 0})
 
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT amount FROM expenses WHERE user_id=%s ORDER BY date",
-        (session['user_id'],)
-    )
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
+    #conn = get_db_connection()
+    #cur = conn.cursor()
+    #cur.execute(
+    #    "SELECT amount FROM expenses WHERE user_id=%s ORDER BY date",
+     #   (session['user_id'],)
+   # )
+    #rows = cur.fetchall()
+    #cur.close()
+    #conn.close()
 
-    if len(rows) < 3:
-        return jsonify({"prediction": 0})
+    #if len(rows) < 3:
+     #   return jsonify({"prediction": 0})
 
-    X = [[i] for i in range(len(rows))]
-    y = [float(r[0]) for r in rows]
+   # X = [[i] for i in range(len(rows))]
+   # y = [float(r[0]) for r in rows]
 
-    model = LinearRegression()
-    model.fit(X, y)
+    #model = LinearRegression()
+   # model.fit(X, y)
 
-    prediction = model.predict([[len(rows)]])[0]
-    return jsonify({"prediction": round(prediction, 2)})
+    #prediction = model.predict([[len(rows)]])[0]
+    #return jsonify({"prediction": round(prediction, 2)})
 
 
 # ---------------- RUN APP ----------------
