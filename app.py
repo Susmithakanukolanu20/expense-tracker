@@ -13,7 +13,7 @@ app.secret_key = "your_secret_key_here"
 
 # 🔵 For CLOUD (Railway / Render)
 # Uncomment and fill when deploying
- app.config['MYSQL_HOST'] = 'RAImysql.railway.internal'
+ app.config['MYSQL_HOST'] = 'mysql.railway.internal'
  app.config['MYSQL_USER'] = 'root'
  app.config['MYSQL_PASSWORD'] = 'vFocZFEDyWgtKCEPrAPFahfxQvIfHbiR'
  app.config['MYSQL_DB'] = 'railway'
