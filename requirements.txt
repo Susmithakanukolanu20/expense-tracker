@@ -1,4 +1,10 @@
 flask
+<<<<<<< HEAD
 mysql-connector-python
 werkzeug
+=======
+flask-cors
+werkzeug
+mysql-connector-python
+>>>>>>> e317e200030bb773f9ea0d17cf67a56f2f6451d9
 gunicorn
